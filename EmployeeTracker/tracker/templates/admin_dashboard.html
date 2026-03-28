@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Admin Live Tracking</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Live Employee Tracking</h2>
+    <a href="{% url 'logout' %}">Logout</a>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        let map = L.map('map').setView([18.5204, 73.8567], 12); // Pune default
+
+        // OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        let markers = {};
+        let polylines = {};
+
+        // Fetch live data
+        function fetchLiveData() {
+            fetch('/get-live-data/', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+                .then(response => response.json())
+                .then(data => {
+
+                    console.log("DATA:", data); // debug
+
+                    data.forEach(emp => {
+                        let name = emp.employee;
+                        let lat = emp.current_location.lat;
+                        let lng = emp.current_location.lng;
+
+                        if (markers[name]) {
+                            markers[name].setLatLng([lat, lng]);
+                        } else {
+                            markers[name] = L.marker([lat, lng])
+                                .addTo(map)
+                                .bindPopup(name);
+                        }
+
+                        let pathCoords = emp.path.map(p => [p.lat, p.lng]);
+
+                        if (polylines[name]) {
+                            polylines[name].setLatLngs(pathCoords);
+                        } else {
+                            polylines[name] = L.polyline(pathCoords, {
+                                color: 'lime',
+                                weight: 4
+                            }).addTo(map);
+                        }
+                    });
+                });
+        }
+
+        // Refresh every 5 seconds
+        setInterval(fetchLiveData, 5000);
+        fetchLiveData();
+    </script>
+
+</body>
+
+</html>
