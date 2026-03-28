@@ -50,47 +50,75 @@
 
         /* ================= START TRIP ================= */
         function startTrip() {
+
+            console.log("🚀 Start button clicked");
+
             if (!navigator.geolocation) {
                 alert("Geolocation not supported");
                 return;
             }
 
-            navigator.geolocation.getCurrentPosition(function (position) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
 
-                let lat = position.coords.latitude;
-                let lng = position.coords.longitude;
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
 
-                console.log("START LAT/LNG:", lat, lng);
+                    console.log("📍 START LAT/LNG:", lat, lng);
 
-                fetch('/start-trip/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',   // 🔥 CHANGED
-                        'X-CSRFToken': getCSRFToken()
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        latitude: lat,
-                        longitude: lng
+                    fetch('/start-trip/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            latitude: lat,
+                            longitude: lng
+                        })
                     })
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log("START RESPONSE:", data);
+                        .then(response => {
+                            console.log("📡 RAW RESPONSE:", response);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("✅ START RESPONSE:", data);
 
-                        if (data.status === "started") {
-                            document.getElementById('status').innerText = "Tracking started...";
-                            startTracking();
-                        } else {
-                            alert("Trip not started!");
-                        }
-                    });
+                            if (data.status === "started") {
+                                document.getElementById('status').innerText = "Tracking started...";
+                                startTracking();
+                            }
+                            else if (data.status === "NO DATA") {
+                                alert("❌ No location data sent!");
+                            }
+                            else {
+                                alert("❌ Trip not started! Check backend.");
+                            }
+                        })
+                        .catch(error => {
+                            console.error("❌ FETCH ERROR:", error);
+                            alert("Error starting trip. Check console.");
+                        });
 
-            });
+                },
+
+                function (error) {
+                    console.error("❌ GEOLOCATION ERROR:", error);
+
+                    if (error.code === 1) {
+                        alert("Location permission denied!");
+                    } else {
+                        alert("Unable to fetch location.");
+                    }
+                }
+            );
         }
 
         /* ================= AUTO TRACK ================= */
         function startTracking() {
+
+            console.log("📡 Tracking started...");
 
             if (trackingInterval) {
                 clearInterval(trackingInterval);
@@ -98,35 +126,56 @@
 
             trackingInterval = setInterval(() => {
 
-                navigator.geolocation.getCurrentPosition(function (position) {
+                if (!navigator.geolocation) {
+                    console.error("Geolocation not supported");
+                    return;
+                }
 
-                    let lat = position.coords.latitude;
-                    let lng = position.coords.longitude;
+                navigator.geolocation.getCurrentPosition(
 
-                    console.log("SENDING LOCATION:", lat, lng);
+                    function (position) {
 
-                    fetch('/update-location/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCSRFToken()
-                        },
-                        credentials: 'same-origin',  // 🔥 MUST
-                        body: JSON.stringify({
-                            latitude: lat,
-                            longitude: lng
+                        let lat = position.coords.latitude;
+                        let lng = position.coords.longitude;
+
+                        console.log("📍 SENDING LOCATION:", lat, lng);
+
+                        fetch('/update-location/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCSRFToken()
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                latitude: lat,
+                                longitude: lng
+                            })
                         })
-                    })
-                        .then(res => res.json())
-                        .then(data => {
-                            console.log("TRACK RESPONSE:", data);
+                            .then(res => res.json())
+                            .then(data => {
+                                console.log("📡 TRACK RESPONSE:", data);
 
-                            if (data.status === "NO ACTIVE TRIP") {
-                                document.getElementById('status').innerText = "⚠ No Active Trip!";
-                            }
-                        });
+                                if (data.status === "NO ACTIVE TRIP") {
+                                    console.warn("⚠ No active trip found!");
 
-                }, errorHandler);
+                                    // 🔥 STOP tracking ONLY if truly no trip
+                                    clearInterval(trackingInterval);
+
+                                    document.getElementById('status').innerText = "⚠ Trip not active!";
+                                }
+                            })
+                            .catch(err => {
+                                console.error("❌ TRACK ERROR:", err);
+                            });
+
+                    },
+
+                    function (error) {
+                        console.error("❌ GPS ERROR:", error);
+                    }
+
+                );
 
             }, 5000);
         }

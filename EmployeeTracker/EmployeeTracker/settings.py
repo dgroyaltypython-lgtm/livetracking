@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-o&fsy3d59km5zx5woyhr(^a_p5o%rc!_axh9un24g6_b9o3zxk
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*','localhost','192.168.239.65']
+ALLOWED_HOSTS = ['*','localhost','192.168.239.65','subcultrate-candance-retributively.ngrok-free.dev']
 
 
 # Application definition
@@ -43,6 +43,10 @@ INSTALLED_APPS = [
 
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://subcultrate-candance-retributively.ngrok-free.dev",
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

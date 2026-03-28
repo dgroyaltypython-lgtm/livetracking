@@ -93,18 +93,25 @@ def start_trip(request):
 
     if request.method == 'POST' and request.user.is_authenticated:
         try:
-            # ✅ Try JSON first
-            try:
-                data = json.loads(request.body)
-                lat = data.get('latitude')
-                lng = data.get('longitude')
-            except:
-                # ✅ Fallback to form data
+            lat, lng = None, None
+
+            # ✅ Only parse JSON if body exists
+            if request.body and request.body.strip():
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                    lat = data.get('latitude')
+                    lng = data.get('longitude')
+                except Exception as e:
+                    print("JSON PARSE FAILED:", e)
+
+            # ✅ Fallback to form data
+            if not lat or not lng:
                 lat = request.POST.get('latitude')
                 lng = request.POST.get('longitude')
 
-            print("DATA:", lat, lng)
+            print("FINAL DATA:", lat, lng)
 
+            # ❌ If still empty → stop
             if not lat or not lng:
                 return JsonResponse({'status': 'NO DATA'})
 
@@ -125,17 +132,51 @@ def start_trip(request):
     return JsonResponse({'status': 'invalid'})
 
 
+@csrf_exempt
 def end_trip(request):
-    if request.method == 'POST' and request.user.is_authenticated:
-        trip = Trip.objects.filter(employee=request.user, end_time__isnull=True).last()
+    print("🛑 END TRIP HIT")
 
-        if trip:
+    if request.method == 'POST' and request.user.is_authenticated:
+        try:
+            trip = Trip.objects.filter(
+                employee=request.user,
+                end_time__isnull=True
+            ).last()
+
+            print("ACTIVE TRIP BEFORE END:", trip)
+
+            if not trip:
+                return JsonResponse({'status': 'NO ACTIVE TRIP'})
+
+            # Handle both JSON & form data
+            lat, lng = None, None
+
+            if request.body and request.body.strip():
+                try:
+                    data = json.loads(request.body.decode('utf-8'))
+                    lat = data.get('latitude')
+                    lng = data.get('longitude')
+                except:
+                    pass
+
+            if not lat or not lng:
+                lat = request.POST.get('latitude')
+                lng = request.POST.get('longitude')
+
             trip.end_time = timezone.now()
-            trip.end_lat = request.POST.get('latitude')
-            trip.end_lng = request.POST.get('longitude')
+            trip.end_lat = float(lat) if lat else None
+            trip.end_lng = float(lng) if lng else None
             trip.save()
 
-        return JsonResponse({'status': 'trip ended'})
+            print("✅ TRIP ENDED:", trip)
+
+            return JsonResponse({'status': 'trip ended'})
+
+        except Exception as e:
+            print("❌ END ERROR:", e)
+            return JsonResponse({'status': 'error'})
+
+    return JsonResponse({'status': 'invalid'})
     
 def get_live_data(request):
     print("USER:", request.user, "AUTH:", request.user.is_authenticated)
